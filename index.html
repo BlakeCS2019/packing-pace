@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Packing Pace Tracker</title>
+<meta name="theme-color" content="#8a2432">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<script src="config.js"></script>
+<script src="i18n.js"></script>
+<style>
+/* Layout: shift-board — header controls, pace summary strip, hour-mark board with inline entry, chart, day history */
+:root{
+  --bg:#f3f4f2; --surface:#ffffff; --fg:#1d2124; --muted:#5d666c; --line:#d9ddda;
+  --accent:#8a2432; --accent-soft:#f4e4e6; --on-accent:#ffffff;
+  --good:#1f7a45; --good-bg:#e1f2e7; --warn:#946200; --warn-bg:#fbf0d4; --bad:#b3261e; --bad-bg:#fbe3e1;
+  --input-bg:#fbfbfa;
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#141719; --surface:#1d2124; --fg:#e8eaea; --muted:#9aa3a8; --line:#323a3f;
+  --accent:#e0707e; --accent-soft:#3a2226; --on-accent:#1d2124;
+  --good:#5cc98a; --good-bg:#183324; --warn:#e6b34a; --warn-bg:#3a2f14; --bad:#f07a72; --bad-bg:#3d1c1a;
+  --input-bg:#171a1c; color-scheme:dark}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.45;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+[hidden]{display:none!important}
+.wrap{max-width:1040px;margin:0 auto;padding-inline:16px;padding-block:20px 48px;display:flex;flex-direction:column;gap:20px}
+h1,h2{font-family:var(--display);font-weight:700;letter-spacing:.01em;margin:0;text-wrap:balance}
+h1{font-size:2rem;line-height:1.05}
+h2{font-size:1.25rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.num{font-variant-numeric:tabular-nums}
+.top{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between}
+.brand small{display:block;font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:600}
+.controls{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
+label.field{display:flex;flex-direction:column;gap:4px;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+input{font:inherit;color:var(--fg);background:var(--input-bg);border:1.5px solid var(--line);border-radius:6px;padding:8px 10px}
+input:focus-visible,button:focus-visible{outline:2.5px solid var(--accent);outline-offset:1px}
+input[type=number]{font-family:var(--display);font-size:1.35rem;font-weight:600;font-variant-numeric:tabular-nums;width:7.5rem;padding:6px 10px}
+#headcount{width:6rem}
+input:disabled{opacity:.7}
+button.btn{font:inherit;font-weight:600;border:0;border-radius:6px;padding:10px 18px;background:var(--accent);color:var(--on-accent);cursor:pointer}
+button.link{font:inherit;background:none;border:0;padding:0;color:var(--muted);text-decoration:underline;cursor:pointer}
+.formula{font-size:.85rem;color:var(--muted)}
+.formula b{color:var(--fg);font-weight:600}
+.banner{padding:10px 14px;border-radius:6px;background:var(--warn-bg);color:var(--fg);font-size:.9rem}
+.summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.summary>div{padding:14px 16px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.summary>div+div{border-left:1px solid var(--line)}
+.k{font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.v{font-family:var(--display);font-size:2rem;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
+.sub{font-size:.82rem;color:var(--muted)}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:.8rem;font-weight:600;white-space:nowrap}
+.pill::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+.s-good{color:var(--good);background:var(--good-bg)}
+.s-warn{color:var(--warn);background:var(--warn-bg)}
+.s-bad{color:var(--bad);background:var(--bad-bg)}
+.s-none{color:var(--muted);background:transparent;border:1px dashed var(--line)}
+.board{background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:720px}
+th,td{padding:8px 12px;text-align:right;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;vertical-align:middle}
+th{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;background:var(--bg)}
+th:first-child,td:first-child{text-align:left}
+td.mark{font-family:var(--display);font-size:1.15rem;font-weight:600;white-space:nowrap}
+td.mark span{display:block;font-family:var(--body);font-size:.75rem;color:var(--muted);font-weight:400}
+td.big{font-family:var(--display);font-size:1.2rem;font-weight:600}
+td.dim{color:var(--muted)}
+tr.now td{background:var(--accent-soft)}
+tbody tr:last-child td{border-bottom:0}
+tfoot td{font-weight:600;border-top:2px solid var(--line);border-bottom:0}
+.legend{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:.82rem;color:var(--muted);align-items:center}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.chart svg{width:100%;height:auto;display:block}
+.chart text{fill:var(--muted);font-family:var(--body);font-size:12px}
+.grid line{stroke:var(--line);stroke-width:1}
+.exp{stroke:var(--muted);stroke-width:2;stroke-dasharray:6 5;fill:none}
+.act{stroke:var(--accent);stroke-width:2.5;fill:none}
+.hist{display:flex;flex-direction:column}
+.hrow{display:grid;grid-template-columns:minmax(0,1.4fr) repeat(3,minmax(0,1fr)) auto;gap:12px;align-items:center;padding:10px 4px;border-bottom:1px solid var(--line);background:none;border-left:0;border-right:0;border-top:0;font:inherit;color:inherit;text-align:left;cursor:pointer;width:100%}
+.hrow:hover{background:var(--bg)}
+.hrow.sel{background:var(--accent-soft)}
+.hrow .d{font-weight:600}
+.empty{color:var(--muted);font-size:.9rem;padding:8px 4px}
+.save{font-size:.85rem;font-weight:600;min-height:1.2em}
+.save.ok{color:var(--good)} .save.pend{color:var(--muted)} .save.err{color:var(--bad)}
+.foot{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:.8rem;color:var(--muted)}
+.formula .why{display:block;margin-top:4px}
+input.missing{border-color:var(--warn);background:var(--warn-bg)}
+input.high{border-color:var(--bad)}
+.hint{font-size:.75rem;line-height:1.3;margin-top:4px;max-width:14rem;text-align:left}
+.hint.warn{color:var(--warn)} .hint.bad{color:var(--bad)}
+.hp{font-weight:600}
+.gate{max-width:420px;margin:12vh auto 0;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:24px;display:flex;flex-direction:column;gap:14px}
+.gate input{font-family:var(--display);font-size:1.6rem;letter-spacing:.2em;width:100%}
+.gate .err{color:var(--bad);font-size:.9rem;min-height:1.2em}
+@media (max-width:720px){
+  .summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .summary>div:nth-child(3){border-left:0}
+  .summary>div:nth-child(n+3){border-top:1px solid var(--line)}
+  .hrow{grid-template-columns:minmax(0,1fr) auto auto}
+  .board{overflow:visible}
+  table{min-width:0}
+  thead,td[data-c="eh"],td[data-c="diff"]{display:none}
+  tbody tr{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-template-areas:"mark inp inp st" "hpct cum ec pace";column-gap:8px;row-gap:6px;padding:10px 12px;border-bottom:1px solid var(--line)}
+  tbody tr:last-child{border-bottom:0}
+  tbody tr.now{background:var(--accent-soft)} tbody tr.now td{background:none}
+  tbody td{border:0;padding:0;display:flex;align-items:center}
+  td.mark{grid-area:mark;flex-direction:column;align-items:flex-start;justify-content:center}
+  tbody td:nth-child(2){grid-area:inp}
+  tbody td:nth-child(2) input{width:100%}
+  tbody td:nth-child(2){flex-direction:column;align-items:stretch}
+  td[data-c="st"]{grid-area:st;justify-content:flex-end}
+  td[data-c="hpct"]{grid-area:hpct} td[data-c="cum"]{grid-area:cum} td[data-c="ec"]{grid-area:ec} td[data-c="pace"]{grid-area:pace}
+  td[data-label]{font-size:.95rem;font-family:var(--body);font-weight:600;flex-direction:column;align-items:flex-start;gap:0}
+  td[data-label]::before{content:attr(data-label);font-size:.62rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;line-height:1.3}
+  tbody td[data-label]:empty{display:none}
+  tfoot tr{display:grid;grid-template-columns:auto auto 1fr;gap:10px;padding:10px 12px}
+  tfoot td{border:0;padding:0}
+  tfoot td:nth-child(3),tfoot td:nth-child(4),tfoot td:nth-child(5),tfoot td:nth-child(6),tfoot td:nth-child(7){display:none}
+  tfoot td:nth-child(9){display:none}
+  .hrow .hc,.hrow .tot{display:none}
+}
+@media (prefers-reduced-motion:no-preference){.pill{transition:background .2s,color .2s}}
+</style>
+</head>
+<body>
+
+<div class="wrap" id="gate" hidden>
+  <form class="gate" id="gateForm" autocomplete="off">
+    <div class="brand"><small data-i18n="brand"></small><h1 data-i18n="title"></h1></div>
+    <p id="gateMsg" style="margin:0"></p>
+    <label class="field" for="pinIn"><span data-i18n="pinLabel"></span>
+      <input type="password" id="pinIn" inputmode="numeric" required>
+    </label>
+    <div class="err" id="gateErr"></div>
+    <button class="btn" type="submit" id="gateBtn" data-i18n="connect"></button>
+  </form>
+</div>
+
+<div class="wrap" id="main" hidden>
+  <header class="top">
+    <div class="brand">
+      <small data-i18n="brand"></small>
+      <h1 data-i18n="title"></h1>
+    </div>
+    <div class="controls">
+      <label class="field" for="day"><span data-i18n="shiftDate"></span>
+        <input type="date" id="day">
+      </label>
+      <label class="field" for="headcount"><span data-i18n="packers"></span>
+        <input type="number" id="headcount" min="0" step="1" inputmode="numeric" placeholder="0">
+      </label>
+    </div>
+  </header>
+
+  <div class="formula" id="formula"></div>
+  <div class="banner" id="banner" hidden></div>
+  <div class="banner" id="missingBanner" hidden></div>
+
+  <section class="summary" aria-label="Shift summary">
+    <div><span class="k" data-i18n="dailyGoal"></span><span class="v" id="sGoal">—</span><span class="sub" id="sGoalSub"></span></div>
+    <div><span class="k" data-i18n="packedSoFar"></span><span class="v" id="sTotal">0</span><span class="sub" id="sTotalSub"></span></div>
+    <div><span class="k" data-i18n="expectedByNow"></span><span class="v" id="sExp">—</span><span class="sub" id="sExpSub"></span></div>
+    <div><span class="k" id="sEffK"></span><span class="v" id="sEff">—</span><span id="sEffSub"></span></div>
+  </section>
+
+  <section class="board" aria-label="Hour marks">
+    <table>
+      <thead>
+        <tr>
+          <th data-i18n="thHour"></th>
+          <th data-i18n="thUnits"></th>
+          <th data-i18n="thExpHr"></th>
+          <th data-i18n="thHourPct"></th>
+          <th data-i18n="thRunning"></th>
+          <th data-i18n="thExpBy"></th>
+          <th>+/−</th>
+          <th data-i18n="thPace"></th>
+          <th data-i18n="thStatus"></th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+      <tfoot><tr id="foot"></tr></tfoot>
+    </table>
+  </section>
+  <div class="legend">
+    <span class="pill s-good" data-i18n="legendOn"></span>
+    <span class="pill s-warn" data-i18n="legendSlight"></span>
+    <span class="pill s-bad" data-i18n="legendOff"></span>
+    <span class="save" id="save"></span>
+  </div>
+
+  <section class="panel chart">
+    <h2 data-i18n="chartTitle"></h2>
+    <div id="chart"></div>
+    <div class="legend"><span data-i18n="chartExp"></span><span style="color:var(--accent)" data-i18n="chartAct"></span></div>
+  </section>
+
+  <section class="panel">
+    <h2 data-i18n="pastShifts"></h2>
+    <div class="hist" id="hist"><div class="empty" data-i18n="loading"></div></div>
+  </section>
+
+  <div class="foot"><span data-i18n="footer"></span><button class="link" id="disconnect" type="button" data-i18n="changePin"></button></div>
+</div>
+
+<script>
+(function(){
+  const STD = 115, HOURS_WORKED = 7.5, SHIFT_HOURS = 8.5;
+  const ON_PACE = .93, SLIGHTLY_BEHIND = .86;
+  const PER_PERSON_DAY = STD * HOURS_WORKED;               // 862.5
+  const PER_PERSON_CLOCK_HR = PER_PERSON_DAY / SHIFT_HOURS; // ~101.5
+  const SLOTS = [
+    {id:"1", label:"7:00 AM", range:"6:00–7:00", len:1, el:1},
+    {id:"2", label:"8:00 AM", range:"7:00–8:00", len:1, el:2},
+    {id:"3", label:"9:00 AM", range:"8:00–9:00", len:1, el:3},
+    {id:"4", label:"10:00 AM", range:"9:00–10:00", len:1, el:4},
+    {id:"5", label:"11:00 AM", range:"10:00–11:00", len:1, el:5},
+    {id:"6", label:"12:00 PM", range:"11:00–12:00", len:1, el:6},
+    {id:"7", label:"1:00 PM", range:"12:00–1:00", len:1, el:7},
+    {id:"8", label:"2:00 PM", range:"1:00–2:00", len:1, el:8},
+    {id:"9", label:"2:30 PM", range:"2:00–2:30", len:.5, el:8.5}
+  ];
+  const API = (window.PACK_CONFIG && window.PACK_CONFIG.API_URL) || "";
+  const I18N = window.PACK_I18N;
+  const storeGet = k => { try { return localStorage.getItem(k); } catch(e){ return null; } };
+  const lang = "en";
+  function t(key, vars){
+    let s = (I18N[lang] && I18N[lang][key]) ?? I18N.en[key] ?? key;
+    if (vars) Object.keys(vars).forEach(k => { s = s.split("{"+k+"}").join(vars[k]); });
+    return s;
+  }
+  let gateKey = "gateMsg";
+  const fmt = n => Math.round(n).toLocaleString("en-US");
+  const pct = n => (n*100).toFixed(1) + "%";
+  const shown = r => r == null ? null : Math.round(r * 1000) / 1000;   // the exact value pct() displays
+  const status = r0 => { const r = shown(r0); return r == null ? ["s-none",t("waiting")] : r >= ON_PACE ? ["s-good",t("onPace")] : r >= SLIGHTLY_BEHIND ? ["s-warn",t("slightly")] : ["s-bad",t("offPace")]; };
+  const pill = r => { const [c,t] = status(r); return `<span class="pill ${c}">${t}</span>`; };
+  const todayStr = () => { const d = new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
+  const prettyDate = s => { const [y,m,d] = s.split("-").map(Number); const dt = new Date(y,m-1,d), L = I18N[lang]; return lang === "en" ? `${L._wd[dt.getDay()]}, ${L._mo[m-1]} ${d}, ${y}` : `${L._wd[dt.getDay()]} ${d} ${L._mo[m-1]} ${y}`; };
+  const clock = () => new Date().toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
+  const $ = id => document.getElementById(id);
+  const store = {
+    get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } },
+    set(k,v){ try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k,v); } catch(e){} }
+  };
+
+  // ---------- API ----------
+  let pin = store.get("pp_pin");
+  async function apiGet(params){
+    const q = new URLSearchParams({...params, key: pin || ""});
+    const r = await fetch(API + "?" + q.toString(), {method:"GET", redirect:"follow"});
+    return r.json();
+  }
+  async function apiPost(body){
+    const r = await fetch(API, {method:"POST", redirect:"follow", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify({...body, key: pin || ""})});
+    return r.json();
+  }
+
+  // ---------- state ----------
+  const dayEl = $("day"), hcEl = $("headcount");
+  let state = {date: todayStr(), headcount: null, entries: {}};
+  let server = null;                 // last copy from the Sheet for state.date
+  let pending = loadPending();       // { "yyyy-mm-dd": {headcount?, entries:{}} } not yet saved
+  let flushTimer = null, flushing = false, histDocs = [];
+
+  function loadPending(){ try { return JSON.parse(store.get("pp_pending") || "{}") || {}; } catch(e){ return {}; } }
+  function savePending(){ store.set("pp_pending", JSON.stringify(pending)); }
+  function hasPending(date){ const p = pending[date]; return !!p && (("headcount" in p) || Object.keys(p.entries||{}).length > 0); }
+
+  function applyView(){
+    // view = server copy + this device's unsaved changes
+    const base = server || {headcount:null, entries:{}};
+    const p = pending[state.date] || {};
+    const entries = {...(base.entries||{})};
+    Object.entries(p.entries||{}).forEach(([k,v]) => { if (v === "" || v == null) delete entries[k]; else entries[k] = v; });
+    state.headcount = ("headcount" in p) ? p.headcount : base.headcount;
+    state.entries = entries;
+  }
+
+  function applyLang(){
+    document.documentElement.lang = lang;
+    document.querySelectorAll("[data-i18n]").forEach(el => el.textContent = t(el.dataset.i18n));
+    $("formula").innerHTML = t("formula", {per: PER_PERSON_CLOCK_HR.toFixed(1)});
+    SLOTS.forEach(s => { const i = $("u"+s.id); if (i) i.setAttribute("aria-label", t("unitsAria",{r:s.range})); });
+    $("gateMsg").textContent = t(gateKey);
+    if (lastSave) setSave(...lastSave);
+    render(); renderHist();
+  }
+
+  $("rows").innerHTML = SLOTS.map(s => `
+    <tr data-id="${s.id}">
+      <td class="mark">${s.label}<span>${s.range}</span></td>
+      <td><input type="number" id="u${s.id}" min="0" step="1" inputmode="numeric" enterkeyhint="next"><div class="hint" id="hint${s.id}" hidden></div></td>
+      <td class="dim" data-c="eh"></td>
+      <td data-c="hpct" data-label="${t("lblHour")}"></td>
+      <td class="big" data-c="cum" data-label="${t("lblRunning")}"></td>
+      <td data-c="ec" data-label="${t("lblExpected")}"></td>
+      <td data-c="diff"></td>
+      <td data-c="pace" data-label="${t("lblSoFar")}"></td>
+      <td data-c="st"></td>
+    </tr>`).join("");
+
+  function calc(){
+    const hc = Number(state.headcount) || 0;
+    const goal = PER_PERSON_DAY * hc;
+    let cum = 0, last = null, prevEc = 0;
+    const rows = SLOTS.map(s => {
+      const raw = state.entries[s.id];
+      const has = raw !== undefined && raw !== null && raw !== "";
+      const units = has ? Number(raw) : null;
+      if (has) cum += units;
+      const ec = Math.round(goal * s.el / SHIFT_HOURS);   // expected by this mark, whole units
+      const eh = ec - prevEc;                              // this hour's share, so hours add up to the goal exactly
+      prevEc = ec;
+      const r = has && ec > 0 ? cum / ec : null;            // pace so far (whole shift to this mark)
+      const hr = has && eh > 0 ? units / eh : null;         // this hour only
+      const row = {s, has, units, eh, ec, cum: has ? cum : null, ratio: r, hourRatio: hr};
+      if (has) last = row;
+      return row;
+    });
+    // hours left blank before the latest entered hour
+    const missing = last ? rows.filter(x => !x.has && x.s.el < last.s.el) : [];
+    return {hc, goal, rows, total: cum, last, missing};
+  }
+
+  function render(){
+    const c = calc();
+    dayEl.value = state.date;
+    if (document.activeElement !== hcEl) hcEl.value = state.headcount ?? "";
+    const tbody = $("rows");
+    c.rows.forEach(r => {
+      const tr = tbody.querySelector(`tr[data-id="${r.s.id}"]`);
+      const inp = $("u"+r.s.id);
+      if (document.activeElement !== inp) inp.value = r.has ? r.units : "";
+      const set = (k,v) => tr.querySelector(`[data-c="${k}"]`).innerHTML = v;
+      set("eh", c.hc ? fmt(r.eh) : "—");
+      set("ec", c.hc ? fmt(r.ec) : "—");
+      set("cum", r.has ? fmt(r.cum) : "");
+      if (r.has && c.hc){
+        const d = r.cum - r.ec;
+        set("diff", `<span style="color:var(${d>=0?"--good":"--bad"})">${d>=0?"+":"−"}${fmt(Math.abs(d))}</span>`);
+        set("pace", pct(r.ratio));
+        const hk = status(r.hourRatio)[0];
+        set("hpct", `<span class="hp" style="color:var(${hk==="s-good"?"--good":hk==="s-warn"?"--warn":"--bad"})">${pct(r.hourRatio)}</span>`);
+      } else { set("diff",""); set("pace",""); set("hpct",""); }
+      // warnings: skipped hour, or a number far above this hour's target
+      const isMissing = c.missing.includes(r);
+      const isHigh = r.has && c.hc && r.eh > 0 && r.units > r.eh * 1.5;
+      inp.classList.toggle("missing", isMissing);
+      inp.classList.toggle("high", isHigh);
+      const hint = $("hint"+r.s.id);
+      hint.hidden = !(isMissing || isHigh);
+      hint.className = "hint " + (isHigh ? "bad" : "warn");
+      hint.textContent = isHigh ? t("highHint",{x: fmt(r.eh * 1.5)}) : isMissing ? t("missingHint") : "";
+      set("st", c.hc ? pill(r.has ? r.ratio : null) : "");
+      tr.classList.toggle("now", c.last === r);
+    });
+    const effAll = c.goal ? c.total / c.goal : null;
+    const dayDone = !!(c.last && c.last.s.id === "9");
+    $("foot").innerHTML = `<td>${t("shiftTotal")}</td><td class="big">${fmt(c.total)}</td><td class="dim">${c.hc?fmt(c.goal):"—"}</td><td></td><td></td><td>${c.hc?fmt(c.goal):"—"}</td><td></td><td>${effAll!=null?pct(effAll):""}</td><td class="sub">${dayDone ? t("overallEff") : t("progressToGoal")}</td>`;
+    $("sGoal").textContent = c.hc ? fmt(c.goal) : "—";
+    $("sGoalSub").textContent = c.hc ? t("packersX",{n:c.hc}) : t("enterHeadcount");
+    $("sTotal").textContent = fmt(c.total);
+    $("sTotalSub").textContent = c.last ? t("throughT",{t:c.last.s.label}) : t("noHours");
+    const done = c.last && c.last.s.id === "9";
+    if (c.last && c.hc){
+      $("sExp").textContent = fmt(c.last.ec);
+      $("sExpSub").textContent = t("byT",{t:c.last.s.label});
+      if (done){
+        $("sEffK").textContent = t("overallEff");
+        $("sEff").textContent = pct(effAll);
+        $("sEffSub").innerHTML = pill(effAll);
+      } else {
+        $("sEffK").textContent = t("currentPace");
+        $("sEff").textContent = pct(c.last.ratio);
+        const proj = c.total / c.last.s.el * SHIFT_HOURS;
+        $("sEffSub").innerHTML = pill(c.last.ratio) + ` <span class="sub">${t("projected",{n:fmt(proj)})}</span>`;
+      }
+    } else {
+      $("sExp").textContent = "—"; $("sExpSub").textContent = t("throughLast");
+      $("sEffK").textContent = t("pace"); $("sEff").textContent = "—"; $("sEffSub").innerHTML = "";
+    }
+    const ex = c.hc || 8;
+    $("formula").innerHTML = t("formula", {per: PER_PERSON_CLOCK_HR.toFixed(1)}) +
+      `<span class="why">${t("whyNote", {n: ex, std: fmt(ex * STD), clock: fmt(Math.round(PER_PERSON_DAY * ex / SHIFT_HOURS))})}</span>`;
+    const mb = $("missingBanner");
+    mb.hidden = !c.missing.length;
+    mb.textContent = c.missing.length ? t("missingBanner", {list: c.missing.map(x => x.s.label).join(", ")}) : "";
+    drawChart(c);
+  }
+
+  function drawChart(c){
+    const W=680,H=240,L=56,R=16,T=14,B=30;
+    const pts = c.rows.filter(r=>r.has);
+    const maxY = Math.max(c.goal, c.total, 1) * 1.08;
+    const x = h => L + (W-L-R) * h / SHIFT_HOURS;
+    const y = v => T + (H-T-B) * (1 - v / maxY);
+    const ticks = []; const step = niceStep(maxY/4);
+    for (let v=0; v<=maxY; v+=step) ticks.push(v);
+    const xt = [[0,"6 AM"],[2,"8 AM"],[4,"10 AM"],[6,"12 PM"],[8.5,"2:30 PM"]];
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Running total versus expected pace">`;
+    s += `<g class="grid">${ticks.map(v=>`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}"/>`).join("")}</g>`;
+    s += ticks.map(v=>`<text x="${L-8}" y="${y(v)+4}" text-anchor="end">${fmt(v)}</text>`).join("");
+    s += xt.map(([h,t],i)=>`<text x="${x(h)}" y="${H-8}" text-anchor="${i===0?"start":i===xt.length-1?"end":"middle"}">${t}</text>`).join("");
+    if (c.hc) s += `<line class="exp" x1="${x(0)}" y1="${y(0)}" x2="${x(SHIFT_HOURS)}" y2="${y(c.goal)}"/>`;
+    if (pts.length){
+      const path = [[0,0], ...pts.map(r=>[r.s.el, r.cum])].map(([h,v])=>`${x(h)},${y(v)}`).join(" ");
+      s += `<polyline class="act" points="${path}"/>`;
+      s += pts.map(r=>{ const k = status(r.ratio)[0]; const col = k==="s-good"?"--good":k==="s-warn"?"--warn":k==="s-bad"?"--bad":"--accent";
+        return `<circle cx="${x(r.s.el)}" cy="${y(r.cum)}" r="5" fill="var(${col})" stroke="var(--surface)" stroke-width="2"><title>${r.s.label}: ${fmt(r.cum)}${c.hc?` / ${fmt(r.ec)}`:""}</title></circle>`; }).join("");
+    }
+    if (!c.hc && !pts.length) s += `<text x="${W/2}" y="${H/2}" text-anchor="middle">${t("chartEmpty")}</text>`;
+    $("chart").innerHTML = s + `</svg>`;
+  }
+  function niceStep(raw){ const p = Math.pow(10, Math.floor(Math.log10(raw||1))); const n = raw/p; return (n<=1?1:n<=2?2:n<=5?5:10)*p; }
+
+  // ---------- saving ----------
+  let lastSave = null;
+  function setSave(c, key, vars){ lastSave = [c, key, vars]; const el = $("save"); el.className = "save " + c; el.textContent = t(key, vars); }
+  function queue(change){
+    const p = pending[state.date] || (pending[state.date] = {entries:{}});
+    if ("headcount" in change) p.headcount = change.headcount;
+    if (change.entry) p.entries[change.entry[0]] = change.entry[1];
+    savePending();
+    setSave("pend", "saving");
+    clearTimeout(flushTimer);
+    flushTimer = setTimeout(flush, 800);
+  }
+  async function flush(){
+    clearTimeout(flushTimer); flushTimer = null;
+    if (flushing) { flushTimer = setTimeout(flush, 500); return; }
+    const dates = Object.keys(pending).filter(hasPending);
+    if (!dates.length) return;
+    flushing = true;
+    try {
+      for (const date of dates){
+        const sent = JSON.parse(JSON.stringify(pending[date]));
+        const res = await apiPost({date, ...sent});
+        if (!res || !res.ok){
+          if (res && res.error === "bad_key"){ showGate("pinChanged"); }
+          throw new Error(res && res.error || "save_failed");
+        }
+        // drop only what was sent; keep anything typed during the save
+        const p = pending[date] || {entries:{}};
+        if ("headcount" in sent && p.headcount === sent.headcount) delete p.headcount;
+        Object.entries(sent.entries||{}).forEach(([k,v]) => { if (p.entries[k] === v) delete p.entries[k]; });
+        if (!hasPending(date)) delete pending[date];
+        savePending();
+        if (date === state.date){ server = res.day; applyView(); render(); }
+      }
+      setSave("ok", "saved",{t:clock()});
+      loadHistory();
+    } catch(e){
+      setSave("err", "notSaved");
+      flushTimer = setTimeout(flush, 20000);
+    } finally { flushing = false; }
+  }
+
+  async function loadDay(date){
+    try {
+      const res = await apiGet({action:"get", date});
+      if (!res.ok){ if (res.error === "bad_key") showGate("pinChanged"); return; }
+      if (date !== state.date) return;
+      server = res.day; applyView(); render();
+      $("banner").hidden = true;
+    } catch(e){
+      showBanner(t("cantReach"));
+    }
+  }
+
+  async function loadHistory(){
+    try {
+      const res = await apiGet({action:"list", limit:"90"});
+      if (!res.ok) return;
+      histDocs = (res.days || []).filter(d => d.headcount || d.total);
+      renderHist();
+    } catch(e){}
+  }
+
+  function showBanner(t){ const b = $("banner"); b.textContent = t; b.hidden = false; }
+
+  // ---------- inputs ----------
+  hcEl.addEventListener("input", () => {
+    const v = hcEl.value === "" ? "" : Math.max(0, Math.floor(Number(hcEl.value)));
+    state.headcount = v === "" ? null : v;
+    queue({headcount: v === "" ? null : v});
+    render();
+  });
+  SLOTS.forEach(s => {
+    const inp = $("u"+s.id);
+    inp.addEventListener("input", e => {
+      const raw = e.target.value;
+      const v = raw === "" ? "" : Math.max(0, Math.floor(Number(raw)));
+      if (v === "") delete state.entries[s.id]; else state.entries[s.id] = v;
+      queue({entry:[s.id, v]});
+      render();
+    });
+    inp.addEventListener("keydown", e => {
+      if (e.key === "Enter"){ e.preventDefault(); const n = SLOTS[SLOTS.indexOf(s)+1]; if (n) $("u"+n.id).focus(); else e.target.blur(); }
+    });
+  });
+  dayEl.addEventListener("change", () => { if (dayEl.value) openDay(dayEl.value); });
+
+  function openDay(date){
+    state = {date, headcount:null, entries:{}};
+    server = null; applyView(); render(); markHist();
+    loadDay(date);
+  }
+
+  // refresh from the Sheet so other devices' entries show up
+  setInterval(() => {
+    if (document.hidden || $("main").hidden) return;
+    const a = document.activeElement;
+    if (a && a.tagName === "INPUT" && a !== dayEl) return;
+    loadDay(state.date);
+  }, 30000);
+  setInterval(() => { if (!document.hidden && !$("main").hidden) loadHistory(); }, 120000);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden || $("main").hidden) return;
+    flush(); loadDay(state.date); loadHistory();
+  });
+  window.addEventListener("online", () => flush());
+
+  // ---------- history ----------
+  function renderHist(){
+    const el = $("hist");
+    if (!histDocs.length){ el.innerHTML = `<div class="empty">${t("histEmpty")}</div>`; return; }
+    el.innerHTML = `<div class="hrow" style="cursor:default;background:none"><span class="k">${t("colDate")}</span><span class="k hc">${t("colPackers")}</span><span class="k tot">${t("colPacked")}</span><span class="k">${t("colEff")}</span><span class="k">${t("colStatus")}</span></div>` +
+      histDocs.map(d => {
+        const done = d.lastMark === "9";
+        const r = done ? (d.efficiency ?? (d.goal ? d.total / d.goal : null)) : (d.goal ? d.total / d.goal : null);
+        return `<button class="hrow" type="button" data-date="${d.date}"><span class="d">${prettyDate(d.date)}${done?"":` <span class='sub'>${t("inProgress")}</span>`}</span><span class="hc num">${d.headcount ?? "—"}</span><span class="tot num">${fmt(d.total||0)}</span><span class="num">${r!=null?pct(r):"—"}${!done && r!=null ? ` <span class="sub">${t("toGoal")}</span>` : ""}</span><span>${done ? pill(r) : `<span class="pill s-none">${t("open")}</span>`}</span></button>`;
+      }).join("");
+    el.querySelectorAll("button.hrow").forEach(b => b.addEventListener("click", () => { openDay(b.dataset.date); window.scrollTo({top:0,behavior:"smooth"}); }));
+    markHist();
+  }
+  function markHist(){ document.querySelectorAll("#hist button.hrow").forEach(b => b.classList.toggle("sel", b.dataset.date === state.date)); }
+
+  // ---------- connect gate ----------
+  function showGate(key){
+    gateKey = key || "gateMsg";
+    $("main").hidden = true; $("gate").hidden = false;
+    $("gateMsg").textContent = t(gateKey);
+    $("pinIn").value = ""; $("pinIn").focus();
+  }
+  function showMain(){
+    $("gate").hidden = true; $("main").hidden = false;
+    openDay(todayStr()); loadHistory(); flush();
+  }
+  $("gateForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const val = $("pinIn").value.trim();
+    if (!val) return;
+    $("gateBtn").disabled = true; $("gateErr").textContent = "";
+    const prev = pin; pin = val;
+    try {
+      const res = await apiGet({action:"ping"});
+      if (res.ok){ store.set("pp_pin", val); showMain(); }
+      else { pin = prev; $("gateErr").textContent = t("badPin"); }
+    } catch(err){
+      pin = prev; $("gateErr").textContent = t("noConn");
+    } finally { $("gateBtn").disabled = false; }
+  });
+  $("disconnect").addEventListener("click", () => { store.set("pp_pin", null); pin = null; showGate(); });
+
+  // ---------- start ----------
+  applyLang();
+  if (!API || API.indexOf("PASTE_") === 0){
+    gateKey = "notLinked"; $("gate").hidden = false; $("gateMsg").textContent = t(gateKey);
+    $("gateForm").querySelectorAll("input,button[type=submit]").forEach(x => x.disabled = true);
+  } else if (!pin) {
+    showGate();
+  } else {
+    showMain();
+  }
+
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+  }
+})();
+</script>
+</body>
+</html>
