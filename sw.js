@@ -1,5 +1,5 @@
 // Keeps the app screen available if the Wi-Fi drops. Data calls to Google are never cached.
-const CACHE = "pace-tracker-v4";
+const CACHE = "pace-tracker-v5";
 const SHELL = ["./", "./index.html", "./config.js", "./i18n.js", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", e => {

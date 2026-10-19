@@ -124,8 +124,8 @@ input.high{border-color:var(--bad)}
   tbody td[data-label]:empty{display:none}
   tfoot tr{display:grid;grid-template-columns:auto auto 1fr;gap:10px;padding:10px 12px}
   tfoot td{border:0;padding:0}
-  tfoot td:nth-child(3),tfoot td:nth-child(4),tfoot td:nth-child(5),tfoot td:nth-child(6),tfoot td:nth-child(7){display:none}
-  tfoot td:nth-child(9){display:none}
+  tfoot td:nth-child(3),tfoot td:nth-child(4),tfoot td:nth-child(5),tfoot td:nth-child(6){display:none}
+  tfoot td:nth-child(8){display:none}
   .hrow .hc,.hrow .tot{display:none}
 }
 @media (prefers-reduced-motion:no-preference){.pill{transition:background .2s,color .2s}}
@@ -178,7 +178,6 @@ input.high{border-color:var(--bad)}
         <tr>
           <th data-i18n="thHour"></th>
           <th data-i18n="thUnits"></th>
-          <th data-i18n="thExpHr"></th>
           <th data-i18n="thHourPct"></th>
           <th data-i18n="thRunning"></th>
           <th data-i18n="thExpBy"></th>
@@ -300,7 +299,6 @@ input.high{border-color:var(--bad)}
     <tr data-id="${s.id}">
       <td class="mark">${s.label}<span>${s.range}</span></td>
       <td><input type="number" id="u${s.id}" min="0" step="1" inputmode="numeric" enterkeyhint="next"><div class="hint" id="hint${s.id}" hidden></div></td>
-      <td class="dim" data-c="eh"></td>
       <td data-c="hpct" data-label="${t("lblHour")}"></td>
       <td class="big" data-c="cum" data-label="${t("lblRunning")}"></td>
       <td data-c="ec" data-label="${t("lblExpected")}"></td>
@@ -342,7 +340,6 @@ input.high{border-color:var(--bad)}
       const inp = $("u"+r.s.id);
       if (document.activeElement !== inp) inp.value = r.has ? r.units : "";
       const set = (k,v) => tr.querySelector(`[data-c="${k}"]`).innerHTML = v;
-      set("eh", c.hc ? fmt(r.eh) : "—");
       set("ec", c.hc ? fmt(r.ec) : "—");
       set("cum", r.has ? fmt(r.cum) : "");
       if (r.has && c.hc){
@@ -360,13 +357,13 @@ input.high{border-color:var(--bad)}
       const hint = $("hint"+r.s.id);
       hint.hidden = !(isMissing || isHigh);
       hint.className = "hint " + (isHigh ? "bad" : "warn");
-      hint.textContent = isHigh ? t("highHint",{x: fmt(r.eh * 1.5)}) : isMissing ? t("missingHint") : "";
+      hint.textContent = isHigh ? t("highHint") : isMissing ? t("missingHint") : "";
       set("st", c.hc ? pill(r.has ? r.ratio : null) : "");
       tr.classList.toggle("now", c.last === r);
     });
     const effAll = c.goal ? c.total / c.goal : null;
     const dayDone = !!(c.last && c.last.s.id === "9");
-    $("foot").innerHTML = `<td>${t("shiftTotal")}</td><td class="big">${fmt(c.total)}</td><td class="dim">${c.hc?fmt(c.goal):"—"}</td><td></td><td></td><td>${c.hc?fmt(c.goal):"—"}</td><td></td><td>${effAll!=null?pct(effAll):""}</td><td class="sub">${dayDone ? t("overallEff") : t("progressToGoal")}</td>`;
+    $("foot").innerHTML = `<td>${t("shiftTotal")}</td><td class="big">${fmt(c.total)}</td><td></td><td></td><td>${c.hc?fmt(c.goal):"—"}</td><td></td><td>${effAll!=null?pct(effAll):""}</td><td class="sub">${dayDone ? t("overallEff") : t("progressToGoal")}</td>`;
     $("sGoal").textContent = c.hc ? fmt(c.goal) : "—";
     $("sGoalSub").textContent = c.hc ? t("packersX",{n:c.hc}) : t("enterHeadcount");
     $("sTotal").textContent = fmt(c.total);
@@ -389,9 +386,7 @@ input.high{border-color:var(--bad)}
       $("sExp").textContent = "—"; $("sExpSub").textContent = t("throughLast");
       $("sEffK").textContent = t("pace"); $("sEff").textContent = "—"; $("sEffSub").innerHTML = "";
     }
-    const ex = c.hc || 8;
-    $("formula").innerHTML = t("formula", {per: PER_PERSON_CLOCK_HR.toFixed(1)}) +
-      `<span class="why">${t("whyNote", {n: ex, std: fmt(ex * STD), clock: fmt(Math.round(PER_PERSON_DAY * ex / SHIFT_HOURS))})}</span>`;
+    $("formula").innerHTML = t("formula");
     const mb = $("missingBanner");
     mb.hidden = !c.missing.length;
     mb.textContent = c.missing.length ? t("missingBanner", {list: c.missing.map(x => x.s.label).join(", ")}) : "";
