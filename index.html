@@ -218,15 +218,15 @@ input.high{border-color:var(--bad)}
   const PER_PERSON_DAY = STD * HOURS_WORKED;               // 862.5
   const PER_PERSON_CLOCK_HR = PER_PERSON_DAY / SHIFT_HOURS; // ~101.5
   const SLOTS = [
-    {id:"1", label:"7:00 AM", range:"6:00–7:00", len:1, el:1},
-    {id:"2", label:"8:00 AM", range:"7:00–8:00", len:1, el:2},
-    {id:"3", label:"9:00 AM", range:"8:00–9:00", len:1, el:3},
-    {id:"4", label:"10:00 AM", range:"9:00–10:00", len:1, el:4},
-    {id:"5", label:"11:00 AM", range:"10:00–11:00", len:1, el:5},
-    {id:"6", label:"12:00 PM", range:"11:00–12:00", len:1, el:6},
-    {id:"7", label:"1:00 PM", range:"12:00–1:00", len:1, el:7},
-    {id:"8", label:"2:00 PM", range:"1:00–2:00", len:1, el:8},
-    {id:"9", label:"2:30 PM", range:"2:00–2:30", len:.5, el:8.5}
+    {id:"1", label:"7:30 AM", range:"6:30–7:30", len:1, el:1},
+    {id:"2", label:"8:30 AM", range:"7:30–8:30", len:1, el:2},
+    {id:"3", label:"9:30 AM", range:"8:30–9:30", len:1, el:3},
+    {id:"4", label:"10:30 AM", range:"9:30–10:30", len:1, el:4},
+    {id:"5", label:"11:30 AM", range:"10:30–11:30", len:1, el:5},
+    {id:"6", label:"12:30 PM", range:"11:30–12:30", len:1, el:6},
+    {id:"7", label:"1:30 PM", range:"12:30–1:30", len:1, el:7},
+    {id:"8", label:"2:30 PM", range:"1:30–2:30", len:1, el:8},
+    {id:"9", label:"3:00 PM", range:"2:30–3:00", len:.5, el:8.5}
   ];
   const API = (window.PACK_CONFIG && window.PACK_CONFIG.API_URL) || "";
   const I18N = window.PACK_I18N;
@@ -401,7 +401,7 @@ input.high{border-color:var(--bad)}
     const y = v => T + (H-T-B) * (1 - v / maxY);
     const ticks = []; const step = niceStep(maxY/4);
     for (let v=0; v<=maxY; v+=step) ticks.push(v);
-    const xt = [[0,"6 AM"],[2,"8 AM"],[4,"10 AM"],[6,"12 PM"],[8.5,"2:30 PM"]];
+    const xt = [[0,"6:30 AM"],[2,"8:30 AM"],[4,"10:30 AM"],[6,"12:30 PM"],[8.5,"3:00 PM"]];
     let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Running total versus expected pace">`;
     s += `<g class="grid">${ticks.map(v=>`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}"/>`).join("")}</g>`;
     s += ticks.map(v=>`<text x="${L-8}" y="${y(v)+4}" text-anchor="end">${fmt(v)}</text>`).join("");
