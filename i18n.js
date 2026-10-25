@@ -8,7 +8,7 @@ window.PACK_I18N = {
     title: "Packing Pace Tracker",
     shiftDate: "Shift date",
     packers: "Packers on shift",
-    formula: "Daily goal = <b>115</b> units/hr × <b>7.5</b> hrs worked × <b>packers</b>. The goal is spread evenly across the 6:00 AM–2:30 PM shift.",
+    formula: "Daily goal = <b>115</b> units/hr × <b>7.5</b> hrs worked × <b>packers</b>. The goal is spread evenly across the 6:30 AM–3:00 PM shift.",
     dailyGoal: "Daily goal",
     enterHeadcount: "Enter headcount",
     packedSoFar: "Packed so far",
